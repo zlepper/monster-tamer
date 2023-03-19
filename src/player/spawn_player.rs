@@ -1,15 +1,14 @@
-use crate::prelude::*;
 use crate::jumping::Jumper;
 use crate::player::movement::PlayerAction;
+use crate::player::roaming_camera::{CameraMovement, DEFAULT_CAMERA_DISTANCE};
 use crate::player::Player;
-
+use crate::prelude::*;
 
 #[derive(AssetCollection, Resource)]
 pub struct PlayerAssets {
     #[asset(path = "player/player.glb#Scene0")]
     player: Handle<Scene>,
 }
-
 
 pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
     commands
@@ -21,10 +20,17 @@ pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
         .insert(Player)
         .insert(Jumper::default())
         .with_children(|parent| {
-            parent.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 3.0, 10.0),
-                ..default()
-            });
+            parent
+                .spawn(Camera3dBundle {
+                    transform: Transform::from_xyz(0.0, 3.0, DEFAULT_CAMERA_DISTANCE),
+                    ..default()
+                })
+                .insert(InputManagerBundle::<CameraMovement> {
+                    input_map: InputMap::default()
+                        .insert(DualAxis::mouse_motion(), CameraMovement::Rotate)
+                        .build(),
+                    ..default()
+                });
         })
         .insert(InputManagerBundle::<PlayerAction> {
             action_state: ActionState::default(),
