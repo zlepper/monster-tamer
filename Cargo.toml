@@ -7,6 +7,11 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.10"
+leafwing-input-manager = "0.9"
+bevy_hanabi = { version = "0.6", default-features = false, features = [ "3d" ] }
+big-brain = "0.17"
+bevy_rapier3d = { version = "0.21", features = [ "simd-stable", "parallel", "debug-render-3d" ] }
+bevy_asset_loader = "0.15"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
@@ -15,3 +20,6 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.release]
+codegen-units = 1
