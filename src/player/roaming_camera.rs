@@ -10,6 +10,7 @@ pub enum CameraMovement {
 
 const CAMERA_PAN_RATE: f32 = 0.5;
 pub const DEFAULT_CAMERA_DISTANCE: f32 = 10.0;
+pub const DEFAULT_CAMERA_VECTOR: Vec3 = Vec3::new(0.0, 3.0, DEFAULT_CAMERA_DISTANCE);
 
 pub fn has_window_focus(windows: Query<&Window>) -> bool {
     let window = windows.single();
@@ -34,26 +35,27 @@ pub fn rotate_player(
 }
 
 pub fn pan_camera(
-    mut camera_query: Query<(&mut Transform, &ActionState<CameraMovement>), With<Camera3d>>,
+    mut camera_query: Query<(&mut Transform, &mut KinematicCharacterController, &ActionState<CameraMovement>), With<Camera3d>>,
 ) {
-    for (mut camera_transform, action_state) in camera_query.iter_mut() {
+    for (mut camera_transform, mut character_controller, action_state) in camera_query.iter_mut() {
         if let Some(camera_pan_vector) = action_state.axis_pair(CameraMovement::Rotate) {
             if camera_pan_vector.y() != 0.0 {
                 let mut updated = *camera_transform;
 
                 updated.rotate_around(
-                    Vec3::ZERO,
+                    Vec3 {
+                        z: 0.0,
+                        x: 0.0,
+                        ..DEFAULT_CAMERA_VECTOR
+                    },
                     Quat::from_rotation_x((camera_pan_vector.y() * CAMERA_PAN_RATE).to_radians()),
                 );
 
                 let updated_angle = Quat::IDENTITY.angle_between(updated.rotation.normalize());
 
-                println!("Angle between: {:?}. ", updated_angle);
-
                 if updated_angle < PI * 0.45 {
-                    *camera_transform = updated;
 
-                    let forward = camera_transform.forward();
+                    let forward = updated.forward();
 
                     let scale = if forward.y == 0.0 {
                         1.0
@@ -63,13 +65,12 @@ pub fn pan_camera(
                         remap(updated_angle, 0.0, PI * 0.45, 1.0, 2.0)
                     };
 
-                    println!("Scale: {:?}. Forward: {:?}", scale, forward);
+                    let mut new_translation = forward * scale * DEFAULT_CAMERA_DISTANCE * -1.0;
+                    new_translation.y += DEFAULT_CAMERA_VECTOR.y;
 
-                    let new_translation = forward * scale * DEFAULT_CAMERA_DISTANCE * -1.0;
-
-                    println!("New translation: {:?}", new_translation);
-
-                    camera_transform.translation = new_translation;
+                    updated.translation = new_translation;
+                    character_controller.translation = Some(updated.translation - camera_transform.translation);
+                    camera_transform.rotation = updated.rotation;
                 }
             }
         }

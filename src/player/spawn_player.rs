@@ -1,6 +1,6 @@
 use crate::jumping::Jumper;
 use crate::player::movement::PlayerAction;
-use crate::player::roaming_camera::{CameraMovement, DEFAULT_CAMERA_DISTANCE};
+use crate::player::roaming_camera::{CameraMovement, DEFAULT_CAMERA_VECTOR};
 use crate::player::Player;
 use crate::prelude::*;
 
@@ -22,7 +22,7 @@ pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
         .with_children(|parent| {
             parent
                 .spawn(Camera3dBundle {
-                    transform: Transform::from_xyz(0.0, 3.0, DEFAULT_CAMERA_DISTANCE),
+                    transform: Transform::from_translation(DEFAULT_CAMERA_VECTOR),
                     ..default()
                 })
                 .insert(InputManagerBundle::<CameraMovement> {
@@ -30,7 +30,18 @@ pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
                         .insert(DualAxis::mouse_motion(), CameraMovement::Rotate)
                         .build(),
                     ..default()
-                });
+                })
+                .insert(RigidBody::KinematicPositionBased)
+                .insert(Collider::ball(0.05))
+                .insert(KinematicCharacterController {
+                    apply_impulse_to_dynamic_bodies: false,
+                    slide: true,
+                    autostep: None,
+                    snap_to_ground: None,
+                    offset: CharacterLength::Absolute(0.5),
+                    ..default()
+                })
+                .insert(ActiveCollisionTypes::empty() | ActiveCollisionTypes::KINEMATIC_STATIC);
         })
         .insert(InputManagerBundle::<PlayerAction> {
             action_state: ActionState::default(),
@@ -45,7 +56,10 @@ pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
         .insert(RigidBody::Dynamic)
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Collider::cuboid(0.6, 2.0, 0.8))
-        .insert(KinematicCharacterController::default())
+        .insert(KinematicCharacterController {
+            offset: CharacterLength::Absolute(0.05),
+            ..default()
+        })
         .insert(Velocity::default())
         .insert(ExternalForce::default())
         .insert(ActiveEvents::COLLISION_EVENTS);
