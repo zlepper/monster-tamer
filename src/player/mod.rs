@@ -15,7 +15,7 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_collection_to_loading_state::<_, PlayerAssets>(GameState::Loading)
+        app
             .add_system(spawn_player.in_schedule(OnEnter(GameState::Playing)))
             .add_systems((move_player, player_jump))
             .add_plugin(InputManagerPlugin::<PlayerAction>::default())

@@ -4,16 +4,12 @@ use crate::player::roaming_camera::{CameraMovement, DEFAULT_CAMERA_VECTOR};
 use crate::player::Player;
 use crate::prelude::*;
 
-#[derive(AssetCollection, Resource)]
-pub struct PlayerAssets {
-    #[asset(path = "player/player.glb#Scene0")]
-    player: Handle<Scene>,
-}
+pub fn spawn_player(asset_server: Res<AssetServer>, mut commands: Commands) {
+    let player_model = asset_server.load("player/player.glb#Scene0");
 
-pub fn spawn_player(my_assets: Res<PlayerAssets>, mut commands: Commands) {
     commands
         .spawn(SceneBundle {
-            scene: my_assets.player.clone(),
+            scene: player_model,
             transform: Transform::from_xyz(2.0, 5.0, 2.0),
             ..Default::default()
         })
