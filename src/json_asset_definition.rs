@@ -1,74 +1,36 @@
 use crate::def_database::DefDatabase;
+use crate::def_types::{DefTypes, DefsRoot};
+use crate::monsters::MonsterDefinition;
 use crate::prelude::*;
+use crate::world::BiomeDefinition;
 use bevy::asset::Error;
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadedAsset},
-    reflect::TypeUuid,
     utils::BoxedFuture,
 };
 
-pub struct JsonAssetLoader<TRawDefinition>
-where
-    TRawDefinition: for<'de> serde::Deserialize<'de> + Send + Sync,
-{
-    _phantom: std::marker::PhantomData<TRawDefinition>,
+pub struct DefsLoader;
 
-    extensions: &'static [&'static str],
-}
-
-impl<TRawDefinition> JsonAssetLoader<TRawDefinition>
-where
-    TRawDefinition: for<'de> serde::Deserialize<'de> + Send + Sync,
-{
-    pub fn new(extensions: &'static [&'static str]) -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
-            extensions,
-        }
-    }
-}
-
-impl<TRawDefinition> AssetLoader for JsonAssetLoader<TRawDefinition>
-where
-    TRawDefinition: for<'de> serde::Deserialize<'de> + TypeUuid + Send + Sync + 'static,
-{
+impl AssetLoader for DefsLoader {
     fn load<'a>(
         &'a self,
         bytes: &'a [u8],
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), Error>> {
         Box::pin(async move {
-            let raw_definition: TRawDefinition = serde_json::from_slice(bytes)?;
+            let raw_definition: DefsRoot = serde_json::from_slice(bytes)?;
             load_context.set_default_asset(LoadedAsset::new(raw_definition));
             Ok(())
         })
     }
 
     fn extensions(&self) -> &[&str] {
-        self.extensions
+        &["json"]
     }
 }
 
-pub trait RawDefinition<TDefinition>:
-    for<'de> serde::Deserialize<'de> + TypeUuid + Send + Sync + ToDefinition<TDefinition> + 'static
-where
-    TDefinition: Definition,
-{
-}
-
-pub trait Definition: Resource {
+pub trait Definition: Send + Sync + 'static {
     fn get_def_name(&self) -> &str;
-}
-
-pub trait JsonDefsAdder {
-    fn add_json_defs<TRawDefinition, TDefinition>(
-        &mut self,
-        path: &'static str,
-        extensions: &'static [&'static str],
-    ) -> &mut Self
-    where
-        TRawDefinition: RawDefinition<TDefinition>,
-        TDefinition: Definition;
 }
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
@@ -82,45 +44,32 @@ enum DefDatabaseState {
 #[derive(Debug, Resource)]
 pub struct LoadingQueue(Vec<HandleUntyped>);
 
-impl JsonDefsAdder for App {
-    fn add_json_defs<TRawDefinition, TDefinition>(
-        &mut self,
-        path: &'static str,
-        extensions: &'static [&'static str],
-    ) -> &mut Self
-    where
-        TRawDefinition: RawDefinition<TDefinition>,
-        TDefinition: Definition,
-    {
-        self.add_asset::<TRawDefinition>()
+pub struct DefPlugin;
+
+impl Plugin for DefPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_asset::<DefsRoot>()
             .add_state::<DefDatabaseState>()
-            .add_asset_loader(JsonAssetLoader::<TRawDefinition>::new(extensions))
-            .insert_resource(DefDatabase::<TDefinition>::new())
+            .add_asset_loader(DefsLoader)
             .add_system(
-                add_defs_to_database::<TDefinition, TRawDefinition>
-                    .in_schedule(OnEnter(DefDatabaseState::AddingToDatabase)),
+                add_defs_to_database.in_schedule(OnEnter(DefDatabaseState::AddingToDatabase)),
             )
             .add_system(set_database_ready.in_schedule(OnEnter(DefDatabaseState::Ready)))
             .insert_resource(LoadingQueue(Vec::new()))
             .add_system(
                 (move |asset_server: Res<AssetServer>, mut queue: ResMut<LoadingQueue>| {
                     let assets = asset_server
-                        .load_folder(path)
+                        .load_folder("defs")
                         .expect("Failed to load asset folder");
 
                     queue.0.extend(assets);
                 })
                 .in_schedule(OnEnter(DefDatabaseState::LoadingFromDisk)),
             )
-            .add_system(wait_for_loading_assets.in_set(OnUpdate(DefDatabaseState::LoadingFromDisk)))
+            .add_system(
+                wait_for_loading_assets.in_set(OnUpdate(DefDatabaseState::LoadingFromDisk)),
+            );
     }
-}
-
-pub trait ToDefinition<TDefinition>
-where
-    TDefinition: Definition,
-{
-    fn to_definition(&self, asset_server: &Res<AssetServer>) -> TDefinition;
 }
 
 fn wait_for_loading_assets(
@@ -148,23 +97,58 @@ fn wait_for_loading_assets(
     }
 }
 
-fn add_defs_to_database<TDefinition: Definition, TRawDefinition: RawDefinition<TDefinition>>(
+macro_rules! try_unpack {
+    ($variant:path, $value:expr) => {
+        if let $variant(x) = $value {
+            Some(x)
+        } else {
+            None
+        }
+    };
+}
+
+fn add_defs_to_database(
     asset_server: Res<AssetServer>,
-    raw_definitions: Res<Assets<TRawDefinition>>,
-    mut def_database: ResMut<DefDatabase<TDefinition>>,
+    raw_definitions: Res<Assets<DefsRoot>>,
+    mut commands: Commands,
     mut state: ResMut<NextState<DefDatabaseState>>,
 ) {
+    let mut errors = Vec::new();
 
-    info!("Adding defs to database ({} defs)", raw_definitions.len());
+    let all_definitions: Vec<&DefTypes> = raw_definitions.iter().flat_map(|d| &d.1.defs).collect();
 
-    for (_, raw_def) in raw_definitions.iter() {
-        let def = raw_def.to_definition(&asset_server);
+    let biomes: DefDatabase<BiomeDefinition> = all_definitions
+        .iter()
+        .filter_map(|d| try_unpack!(DefTypes::Biome, d))
+        .cloned()
+        .collect();
 
-        let def_name = def.get_def_name();
+    info!("Loaded {} biomes", biomes.len());
 
-        info!("Def read for {:?}", def_name);
+    let monsters: DefDatabase<MonsterDefinition> = all_definitions
+        .iter()
+        .filter_map(|d| {
+            try_unpack!(DefTypes::Monster, d).and_then(|m| {
+                match m.to_definition(&asset_server, &biomes) {
+                    Ok(def) => Some(def),
+                    Err(err) => {
+                        errors.push(err);
+                        None
+                    }
+                }
+            })
+        })
+        .collect();
 
-        def_database.insert(def_name.to_string(), def);
+    info!("Loaded {} monsters", monsters.len());
+
+    commands.insert_resource(biomes);
+    commands.insert_resource(monsters);
+
+    if !errors.is_empty() {
+        error!("Failed to load some definitions: {:?}", errors);
+    } else {
+        info!("All definitions loaded without errors");
     }
 
     state.set(DefDatabaseState::Ready);
@@ -172,4 +156,11 @@ fn add_defs_to_database<TDefinition: Definition, TRawDefinition: RawDefinition<T
 
 fn set_database_ready(mut state: ResMut<NextState<GameState>>) {
     state.set(GameState::Playing);
+}
+
+pub fn output_json_schema() {
+    let schema = schemars::schema_for!(DefsRoot);
+    let schema_file = std::fs::File::create("assets/def_schema.json")
+        .expect("Failed to create schema json file on disk");
+    serde_json::to_writer_pretty(schema_file, &schema).expect("Failed to schema to json file");
 }

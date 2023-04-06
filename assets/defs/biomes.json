@@ -1,0 +1,12 @@
+{
+  "defs": [
+    {
+      "type": "Biome",
+      "def_name": "plains"
+    },
+    {
+      "type": "Biome",
+      "def_name": "beach"
+    }
+  ]
+}

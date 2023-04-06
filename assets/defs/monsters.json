@@ -1,0 +1,17 @@
+{
+  "defs": [
+    {
+      "type": "Monster",
+      "def_name": "block",
+      "model_path": "monsters/001/model.glb#Scene0",
+      "spawn_locations": [
+        {
+          "biome_def": "plains"
+        },
+        {
+          "biome_def": "beach"
+        }
+      ]
+    }
+  ]
+}

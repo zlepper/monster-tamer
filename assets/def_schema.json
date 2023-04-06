@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DefsRoot",
+  "type": "object",
+  "required": [
+    "defs"
+  ],
+  "properties": {
+    "defs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DefTypes"
+      }
+    }
+  },
+  "definitions": {
+    "DefTypes": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "def_name",
+            "model_path",
+            "spawn_locations",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "Monster"
+              ]
+            },
+            "def_name": {
+              "type": "string"
+            },
+            "model_path": {
+              "type": "string"
+            },
+            "spawn_locations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/MonsterRawSpawnLocation"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "def_name",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "Biome"
+              ]
+            },
+            "def_name": {
+              "type": "string"
+            },
+            "min_height": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            },
+            "max_height": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            },
+            "min_humidity": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            },
+            "max_humidity": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            },
+            "min_temperature": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            },
+            "max_temperature": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "float"
+            }
+          }
+        }
+      ]
+    },
+    "MonsterRawSpawnLocation": {
+      "type": "object",
+      "required": [
+        "biome_def"
+      ],
+      "properties": {
+        "biome_def": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

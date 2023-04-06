@@ -1,9 +1,7 @@
 mod monster_definition;
+pub use monster_definition::{MonsterDefinition, MonsterRawDefinition};
 
-use crate::json_asset_definition::{JsonDefsAdder};
-use crate::monsters::monster_definition::{MonsterDefinition, MonsterRawDefinition};
 use crate::prelude::*;
-
 
 #[derive(Component, Debug)]
 pub struct Monster {
@@ -13,7 +11,5 @@ pub struct Monster {
 pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_json_defs::<MonsterRawDefinition, MonsterDefinition>("monsters", &["monster.json"]);
-    }
+    fn build(&self, app: &mut App) {}
 }
