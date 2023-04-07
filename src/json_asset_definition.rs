@@ -9,7 +9,7 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-pub struct DefsLoader;
+struct DefsLoader;
 
 impl AssetLoader for DefsLoader {
     fn load<'a>(
@@ -29,10 +29,6 @@ impl AssetLoader for DefsLoader {
     }
 }
 
-pub trait Definition: Send + Sync + 'static {
-    fn get_def_name(&self) -> &str;
-}
-
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
 enum DefDatabaseState {
     #[default]
@@ -42,7 +38,7 @@ enum DefDatabaseState {
 }
 
 #[derive(Debug, Resource)]
-pub struct LoadingQueue(Vec<HandleUntyped>);
+struct LoadingQueue(Vec<HandleUntyped>);
 
 pub struct DefPlugin;
 

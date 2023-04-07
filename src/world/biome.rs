@@ -1,4 +1,3 @@
-use crate::json_asset_definition::Definition;
 use crate::prelude::*;
 use bevy::reflect::TypeUuid;
 use schemars::JsonSchema;

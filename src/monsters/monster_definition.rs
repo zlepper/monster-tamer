@@ -1,5 +1,5 @@
+use crate::def_database::Definition;
 use crate::def_database::{DefDatabase, DefId};
-use crate::json_asset_definition::Definition;
 use crate::prelude::*;
 use crate::world::BiomeDefinition;
 use anyhow::anyhow;

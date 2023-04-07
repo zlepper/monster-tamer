@@ -1,8 +1,11 @@
-use crate::json_asset_definition::Definition;
 use crate::prelude::*;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
+
+pub trait Definition: Send + Sync + 'static {
+    fn get_def_name(&self) -> &str;
+}
 
 #[derive(Resource)]
 pub struct DefDatabase<T>
@@ -57,11 +60,6 @@ where
             by_id_map: HashMap::new(),
             next_id: 0,
         }
-    }
-
-    pub fn get_by_name(&self, name: &str) -> Option<&DefInfo<T>> {
-        let id = self.by_name_map.get(name)?;
-        self.by_id_map.get(id)
     }
 
     pub fn get_by_id(&self, id: &DefId<T>) -> Option<&T> {
