@@ -3,16 +3,37 @@ use crate::player::movement::PlayerAction;
 use crate::player::roaming_camera::{CameraMovement, DEFAULT_CAMERA_VECTOR};
 use crate::player::Player;
 use crate::prelude::*;
+use bevy_asset_loader::prelude::AssetCollection;
 
-pub fn spawn_player(asset_server: Res<AssetServer>, mut commands: Commands) {
-    let player_model = asset_server.load("player/player.glb#Scene0");
+#[derive(AssetCollection, Resource)]
+pub struct PlayerAssets {
+    #[asset(path = "player/player.glb#Scene0")]
+    model: Handle<Scene>,
+
+    #[asset(path = "player/player.glb#Mesh0/Primitive0")]
+    mesh: Handle<Mesh>,
+}
+
+pub fn spawn_player(
+    player_assets: Res<PlayerAssets>,
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+) {
+    info!("Spawning player");
+    let player_mesh = meshes
+        .get(&player_assets.mesh)
+        .expect("Failed to load player mesh");
+
+    let player_collider = Collider::from_bevy_mesh(player_mesh, &ComputedColliderShape::TriMesh)
+        .expect("Failed to create collider for player");
 
     commands
         .spawn(SceneBundle {
-            scene: player_model,
+            scene: player_assets.model.clone(),
             transform: Transform::from_xyz(2.0, 5.0, 2.0),
             ..Default::default()
         })
+        .insert(Name::new("Player"))
         .insert(Player)
         .insert(Jumper::default())
         .with_children(|parent| {
@@ -49,14 +70,13 @@ pub fn spawn_player(asset_server: Res<AssetServer>, mut commands: Commands) {
                 (QwertyScanCode::Space, PlayerAction::Jump),
             ]),
         })
-        .insert(RigidBody::Dynamic)
+        .insert(RigidBody::KinematicVelocityBased)
         .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Collider::cuboid(0.6, 2.0, 0.8))
+        .insert(player_collider)
         .insert(KinematicCharacterController {
             offset: CharacterLength::Absolute(0.05),
             ..default()
         })
         .insert(Velocity::default())
-        .insert(ExternalForce::default())
         .insert(ActiveEvents::COLLISION_EVENTS);
 }

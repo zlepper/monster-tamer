@@ -21,8 +21,10 @@
           "required": [
             "def_name",
             "model_path",
+            "move_learn_set",
             "spawn_locations",
-            "type"
+            "type",
+            "types"
           ],
           "properties": {
             "type": {
@@ -41,6 +43,18 @@
               "type": "array",
               "items": {
                 "$ref": "#/definitions/MonsterRawSpawnLocation"
+              }
+            },
+            "move_learn_set": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RawLearnedMove"
+              }
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string"
               }
             }
           }
@@ -104,6 +118,87 @@
               "format": "float"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "damage_scales",
+            "def_name",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "MonsterType"
+              ]
+            },
+            "def_name": {
+              "type": "string"
+            },
+            "damage_scales": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RawMonsterTypeDamageScale"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "base_accuracy",
+            "base_crit_chance",
+            "base_crit_multiplier",
+            "base_damage",
+            "base_mp_usage",
+            "category",
+            "def_name",
+            "move_type_def_name",
+            "post_move_speed",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "MonsterMove"
+              ]
+            },
+            "def_name": {
+              "type": "string"
+            },
+            "move_type_def_name": {
+              "type": "string"
+            },
+            "base_mp_usage": {
+              "type": "number",
+              "format": "float"
+            },
+            "base_damage": {
+              "type": "number",
+              "format": "float"
+            },
+            "base_accuracy": {
+              "type": "number",
+              "format": "float"
+            },
+            "base_crit_chance": {
+              "type": "number",
+              "format": "float"
+            },
+            "base_crit_multiplier": {
+              "type": "number",
+              "format": "float"
+            },
+            "post_move_speed": {
+              "type": "number",
+              "format": "float"
+            },
+            "category": {
+              "$ref": "#/definitions/MoveCategory"
+            }
+          }
         }
       ]
     },
@@ -117,6 +212,65 @@
           "type": "string"
         }
       }
+    },
+    "RawLearnedMove": {
+      "type": "object",
+      "required": [
+        "conditions",
+        "monster_move_def_name"
+      ],
+      "properties": {
+        "monster_move_def_name": {
+          "type": "string"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RawMoveLearnCondition"
+          }
+        }
+      }
+    },
+    "RawMoveLearnCondition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "Level"
+          ],
+          "properties": {
+            "Level": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RawMonsterTypeDamageScale": {
+      "type": "object",
+      "required": [
+        "damage_scale",
+        "target_type_def_name"
+      ],
+      "properties": {
+        "damage_scale": {
+          "type": "number",
+          "format": "float"
+        },
+        "target_type_def_name": {
+          "type": "string"
+        }
+      }
+    },
+    "MoveCategory": {
+      "type": "string",
+      "enum": [
+        "Physical",
+        "Magical"
+      ]
     }
   }
 }

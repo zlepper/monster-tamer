@@ -1,0 +1,51 @@
+{
+  "defs": [
+    {
+      "type": "MonsterType",
+      "def_name": "fire",
+      "damage_scales": [
+        {
+          "target_type_def_name": "water",
+          "damage_scale": 0.5
+        },
+        {
+          "target_type_def_name": "grass",
+          "damage_scale": 2
+        }
+      ]
+    },
+    {
+      "type": "MonsterType",
+      "def_name": "water",
+      "damage_scales": [
+        {
+          "target_type_def_name": "grass",
+          "damage_scale": 0.5
+        },
+        {
+          "target_type_def_name": "fire",
+          "damage_scale": 2
+        }
+      ]
+    },
+    {
+      "type": "MonsterType",
+      "def_name": "grass",
+      "damage_scales": [
+        {
+          "target_type_def_name": "fire",
+          "damage_scale": 0.5
+        },
+        {
+          "target_type_def_name": "water",
+          "damage_scale": 2
+        }
+      ]
+    },
+    {
+      "type": "MonsterType",
+      "def_name": "normal",
+      "damage_scales": []
+    }
+  ]
+}

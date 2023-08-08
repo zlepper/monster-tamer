@@ -1,6 +1,6 @@
 use crate::def_database::DefDatabase;
 use crate::def_types::{DefTypes, DefsRoot};
-use crate::monsters::MonsterDefinition;
+use crate::monsters::{MonsterDefinition, MonsterMove, MonsterType};
 use crate::prelude::*;
 use crate::world::BiomeDefinition;
 use bevy::asset::Error;
@@ -29,68 +29,23 @@ impl AssetLoader for DefsLoader {
     }
 }
 
-#[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
-enum DefDatabaseState {
-    #[default]
-    LoadingFromDisk,
-    AddingToDatabase,
-    Ready,
-}
-
-#[derive(Debug, Resource)]
-struct LoadingQueue(Vec<HandleUntyped>);
-
 pub struct DefPlugin;
 
 impl Plugin for DefPlugin {
     fn build(&self, app: &mut App) {
         app.add_asset::<DefsRoot>()
-            .add_state::<DefDatabaseState>()
             .add_asset_loader(DefsLoader)
+            .add_collection_to_loading_state::<_, DefAssets>(GameState::LoadingFromDisk)
             .add_system(
-                add_defs_to_database.in_schedule(OnEnter(DefDatabaseState::AddingToDatabase)),
-            )
-            .add_system(set_database_ready.in_schedule(OnEnter(DefDatabaseState::Ready)))
-            .insert_resource(LoadingQueue(Vec::new()))
-            .add_system(
-                (move |asset_server: Res<AssetServer>, mut queue: ResMut<LoadingQueue>| {
-                    let assets = asset_server
-                        .load_folder("defs")
-                        .expect("Failed to load asset folder");
-
-                    queue.0.extend(assets);
-                })
-                .in_schedule(OnEnter(DefDatabaseState::LoadingFromDisk)),
-            )
-            .add_system(
-                wait_for_loading_assets.in_set(OnUpdate(DefDatabaseState::LoadingFromDisk)),
+                add_defs_to_database.in_schedule(OnEnter(GameState::AddingToDatabase)),
             );
     }
 }
 
-fn wait_for_loading_assets(
-    mut state: ResMut<NextState<DefDatabaseState>>,
-    queue: Res<LoadingQueue>,
-    asset_server: Res<AssetServer>,
-) {
-    use bevy::asset::LoadState;
-
-    match asset_server.get_group_load_state(queue.0.iter().map(|h| h.id())) {
-        LoadState::Failed => {
-            for asset in queue.0.iter() {
-                if let LoadState::Failed = asset_server.get_load_state(asset.id()) {
-                    error!("Failed to load asset {:?}", asset);
-                }
-            }
-        }
-        LoadState::Loaded => {
-            info!("All assets loaded");
-            state.set(DefDatabaseState::AddingToDatabase);
-        }
-        _ => {
-            // NotLoaded/Loading: not fully ready yet
-        }
-    }
+#[derive(AssetCollection, Resource)]
+pub struct DefAssets {
+    #[asset(path = "defs", collection(typed))]
+    pub defs: Vec<Handle<DefsRoot>>,
 }
 
 macro_rules! try_unpack {
@@ -107,25 +62,85 @@ fn add_defs_to_database(
     asset_server: Res<AssetServer>,
     raw_definitions: Res<Assets<DefsRoot>>,
     mut commands: Commands,
-    mut state: ResMut<NextState<DefDatabaseState>>,
+    mut state: ResMut<NextState<GameState>>,
 ) {
     let mut errors = Vec::new();
 
     let all_definitions: Vec<&DefTypes> = raw_definitions.iter().flat_map(|d| &d.1.defs).collect();
 
-    let biomes: DefDatabase<BiomeDefinition> = all_definitions
-        .iter()
-        .filter_map(|d| try_unpack!(DefTypes::Biome, d))
-        .cloned()
-        .collect();
+    let biomes = create_biome_defs(&all_definitions);
 
     info!("Loaded {} biomes", biomes.len());
 
-    let monsters: DefDatabase<MonsterDefinition> = all_definitions
+    let monster_types = create_monster_type_defs(&all_definitions, &mut errors);
+
+    info!("Loaded {} monster types", monster_types.len());
+
+    let monster_moves = create_monster_move_defs(&all_definitions, &monster_types, &mut errors);
+
+    info!("Loaded {} monster moves", monster_moves.len());
+
+    let monsters = create_monster_defs(&asset_server, &all_definitions, &biomes, &monster_moves, &monster_types, &mut errors);
+
+    info!("Loaded {} monsters", monsters.len());
+
+    commands.insert_resource(biomes);
+    commands.insert_resource(monsters);
+    commands.insert_resource(monster_moves);
+    commands.insert_resource(monster_types);
+
+    if !errors.is_empty() {
+        error!("Failed to load some definitions: {:?}", errors);
+    } else {
+        info!("All definitions loaded without errors");
+    }
+
+    state.set(GameState::Playing);
+}
+
+fn create_biome_defs(all_definitions: &[&DefTypes]) -> DefDatabase<BiomeDefinition> {
+    all_definitions
+        .iter()
+        .filter_map(|d| try_unpack!(DefTypes::Biome, d))
+        .cloned()
+        .collect()
+}
+
+fn create_monster_type_defs(
+    all_definitions: &[&DefTypes],
+    errors: &mut Vec<Error>,
+) -> DefDatabase<MonsterType> {
+    let mut monster_types = all_definitions
+        .iter()
+        .filter_map(|d| try_unpack!(DefTypes::MonsterType, d).and_then(|t| Some(t.to_definition())))
+        .collect();
+
+    for d in all_definitions.iter() {
+        if let DefTypes::MonsterType(t) = d {
+            match t.link_definitions(&monster_types) {
+                Ok(def) => {
+                    monster_types.replace(def);
+                },
+                Err(err) => {
+                    errors.push(err);
+                }
+            }
+        }
+    }
+
+    monster_types
+}
+
+fn create_monster_move_defs(
+    all_definitions: &[&DefTypes],
+    move_types: &DefDatabase<MonsterType>,
+    errors: &mut Vec<Error>,
+) -> DefDatabase<MonsterMove> {
+    all_definitions
         .iter()
         .filter_map(|d| {
-            try_unpack!(DefTypes::Monster, d).and_then(|m| {
-                match m.to_definition(&asset_server, &biomes) {
+            try_unpack!(DefTypes::MonsterMove, d).and_then(|t| {
+                match t.to_definition(move_types) {
                     Ok(def) => Some(def),
                     Err(err) => {
                         errors.push(err);
@@ -134,24 +149,31 @@ fn add_defs_to_database(
                 }
             })
         })
-        .collect();
-
-    info!("Loaded {} monsters", monsters.len());
-
-    commands.insert_resource(biomes);
-    commands.insert_resource(monsters);
-
-    if !errors.is_empty() {
-        error!("Failed to load some definitions: {:?}", errors);
-    } else {
-        info!("All definitions loaded without errors");
-    }
-
-    state.set(DefDatabaseState::Ready);
+        .collect()
 }
 
-fn set_database_ready(mut state: ResMut<NextState<GameState>>) {
-    state.set(GameState::Playing);
+fn create_monster_defs(
+    asset_server: &Res<AssetServer>,
+    all_definitions: &[&DefTypes],
+    biomes: &DefDatabase<BiomeDefinition>,
+    moves: &DefDatabase<MonsterMove>,
+    types: &DefDatabase<MonsterType>,
+    errors: &mut Vec<Error>,
+) -> DefDatabase<MonsterDefinition> {
+    all_definitions
+        .iter()
+        .filter_map(|d| {
+            try_unpack!(DefTypes::Monster, d).and_then(|m| {
+                match m.to_definition(asset_server, biomes, moves, types) {
+                    Ok(def) => Some(def),
+                    Err(err) => {
+                        errors.push(err);
+                        None
+                    }
+                }
+            })
+        })
+        .collect()
 }
 
 pub fn output_json_schema() {

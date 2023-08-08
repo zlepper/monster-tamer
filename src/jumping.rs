@@ -12,7 +12,7 @@ pub struct Jumper {
 
 fn allow_jumpers_to_jump(
     rapier_context: Res<RapierContext>,
-    mut jumpers: Query<(&mut Jumper, Entity)>,
+    mut jumpers: Query<(&mut Jumper, Entity), Without<KinematicCharacterControllerOutput>>,
     jump_points: Query<Entity, With<JumpPoint>>,
 ) {
     for (mut jumper, jumper_entity) in jumpers.iter_mut() {
@@ -27,10 +27,18 @@ fn allow_jumpers_to_jump(
     }
 }
 
+fn allow_kinematic_jumpers_to_jump(
+    mut jumpers: Query<(&mut Jumper, &KinematicCharacterControllerOutput)>,
+) {
+    for (mut jumper, kinematic_output) in jumpers.iter_mut() {
+        jumper.has_ground_contact = kinematic_output.grounded;
+    }
+}
+
 pub struct JumpingPlugin;
 
 impl Plugin for JumpingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(allow_jumpers_to_jump);
+        app.add_systems((allow_jumpers_to_jump, allow_kinematic_jumpers_to_jump));
     }
 }

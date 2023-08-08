@@ -1,6 +1,6 @@
 use crate::player::Player;
 use crate::prelude::*;
-use bevy::window::CursorGrabMode;
+use bevy::window::{CursorGrabMode, PrimaryWindow};
 use std::f32::consts::PI;
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq)]
@@ -12,10 +12,15 @@ const CAMERA_PAN_RATE: f32 = 0.5;
 pub const DEFAULT_CAMERA_DISTANCE: f32 = 10.0;
 pub const DEFAULT_CAMERA_VECTOR: Vec3 = Vec3::new(0.0, 3.0, DEFAULT_CAMERA_DISTANCE);
 
-pub fn has_window_focus(windows: Query<&Window>) -> bool {
-    let window = windows.single();
+pub fn has_window_focus(windows: Query<&Window, With<PrimaryWindow>>) -> bool {
+    let window = windows.get_single();
 
-    window.cursor.grab_mode == CursorGrabMode::Locked
+    if let Ok(window) = window {
+
+        window.focused && window.cursor.grab_mode == CursorGrabMode::Locked
+    } else {
+        false
+    }
 }
 
 pub fn rotate_player(
@@ -48,7 +53,7 @@ pub fn pan_camera(
                         x: 0.0,
                         ..DEFAULT_CAMERA_VECTOR
                     },
-                    Quat::from_rotation_x((camera_pan_vector.y() * CAMERA_PAN_RATE).to_radians()),
+                    Quat::from_rotation_x((-camera_pan_vector.y() * CAMERA_PAN_RATE).to_radians()),
                 );
 
                 let updated_angle = Quat::IDENTITY.angle_between(updated.rotation.normalize());
@@ -86,19 +91,23 @@ fn remap(value: f32, value_min: f32, value_max: f32, result_min: f32, result_max
 
 
 pub fn grab_mouse(
-    mut windows: Query<&mut Window>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mouse: Res<Input<MouseButton>>,
     key: Res<Input<KeyCode>>,
 ) {
-    let mut window = windows.single_mut();
+    let mut window = windows.get_single_mut();
 
-    if mouse.just_pressed(MouseButton::Left) {
-        window.cursor.visible = false;
-        window.cursor.grab_mode = CursorGrabMode::Locked;
-    }
+    if let Ok(mut window) = window {
+        if window.cursor_position().is_some() {
+            if mouse.just_pressed(MouseButton::Left) {
+                window.cursor.visible = false;
+                window.cursor.grab_mode = CursorGrabMode::Locked;
+            }
 
-    if key.just_pressed(KeyCode::Escape) {
-        window.cursor.visible = true;
-        window.cursor.grab_mode = CursorGrabMode::None;
+            if key.just_pressed(KeyCode::Escape) {
+                window.cursor.visible = true;
+                window.cursor.grab_mode = CursorGrabMode::None;
+            }
+        }
     }
 }

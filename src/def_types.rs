@@ -1,4 +1,4 @@
-use crate::monsters::MonsterRawDefinition;
+use crate::monsters::{MonsterRawDefinition, RawMonsterMove, RawMonsterType};
 use crate::world::BiomeDefinition;
 use bevy::reflect::TypeUuid;
 use schemars::JsonSchema;
@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub enum DefTypes {
     Monster(MonsterRawDefinition),
     Biome(BiomeDefinition),
+    MonsterType(RawMonsterType),
+    MonsterMove(RawMonsterMove),
 }
 
 #[derive(Debug, Deserialize, Serialize, TypeUuid, JsonSchema)]

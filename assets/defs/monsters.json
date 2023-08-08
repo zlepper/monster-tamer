@@ -4,12 +4,23 @@
       "type": "Monster",
       "def_name": "block",
       "model_path": "monsters/001/model.glb#Scene0",
+      "types": ["normal"],
       "spawn_locations": [
         {
           "biome_def": "plains"
         },
         {
           "biome_def": "beach"
+        }
+      ],
+      "move_learn_set": [
+        {
+          "monster_move_def_name": "tackle",
+          "conditions": [
+            {
+              "Level": 0
+            }
+          ]
         }
       ]
     }

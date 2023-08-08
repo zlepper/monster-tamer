@@ -1,0 +1,16 @@
+{
+  "defs": [
+    {
+      "type": "MonsterMove",
+      "def_name": "tackle",
+      "base_accuracy": 1,
+      "base_crit_chance": 0.05,
+      "base_crit_multiplier": 2,
+      "base_damage": 40,
+      "base_mp_usage": 10,
+      "category": "Physical",
+      "move_type_def_name": "normal",
+      "post_move_speed": 1
+    }
+  ]
+}

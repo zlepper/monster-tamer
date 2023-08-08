@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use std::collections::HashMap;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 pub trait Definition: Send + Sync + 'static {
@@ -35,7 +35,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct DefId<TDef> {
     id: u64,
     _phantom: PhantomData<TDef>,
@@ -47,6 +47,20 @@ impl<TDef> DefId<TDef> {
             id,
             _phantom: PhantomData,
         }
+    }
+}
+
+impl<TDef> PartialEq<Self> for DefId<TDef> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<TDef> Eq for DefId<TDef> {}
+
+impl<TDef> Hash for DefId<TDef> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
@@ -85,6 +99,15 @@ where
         self.by_id_map.insert(def_info.id.id, def_info);
     }
 
+    pub fn replace(&mut self, value: T) {
+        let existing_id = self
+            .by_name_map
+            .get(value.get_def_name())
+            .unwrap_or_else(|| panic!("Def {} not found for replacement", value.get_def_name()));
+
+        self.by_id_map.get_mut(existing_id).unwrap().definition = value;
+    }
+
     pub fn len(&self) -> usize {
         self.by_id_map.len()
     }
@@ -97,5 +120,45 @@ impl<T: Definition> FromIterator<T> for DefDatabase<T> {
             db.insert(item);
         }
         db
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct SimpleTestDef {
+        name: String,
+        value: u32,
+    }
+
+    impl Definition for SimpleTestDef {
+        fn get_def_name(&self) -> &str {
+            &self.name
+        }
+    }
+
+    #[test]
+    fn insert_and_get() {
+        let mut db = DefDatabase::<SimpleTestDef>::new();
+        db.insert(SimpleTestDef { name: "test".to_string(), value: 42 });
+        let id = db.get_def_id("test").unwrap();
+        let def = db.get_by_id(&id).unwrap();
+        assert_eq!(def.name, "test");
+        assert_eq!(def.value, 42);
+    }
+
+    #[test]
+    fn replace() {
+        let mut db = DefDatabase::<SimpleTestDef>::new();
+        db.insert(SimpleTestDef { name: "test".to_string(), value: 42 });
+        let id = db.get_def_id("test").unwrap();
+        let def = db.get_by_id(&id).unwrap();
+        assert_eq!(def.name, "test");
+        assert_eq!(def.value, 42);
+        db.replace(SimpleTestDef { name: "test".to_string(), value: 43 });
+        let def = db.get_by_id(&id).unwrap();
+        assert_eq!(def.name, "test");
+        assert_eq!(def.value, 43);
     }
 }

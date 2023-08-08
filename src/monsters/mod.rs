@@ -1,11 +1,16 @@
 mod monster_definition;
-pub use monster_definition::{MonsterDefinition, MonsterRawDefinition};
+mod monster_move;
+mod monster_type;
+
+pub use monster_definition::*;
+pub use monster_type::*;
+pub use monster_move::*;
 
 use crate::prelude::*;
 
 #[derive(Component, Debug)]
 pub struct Monster {
-    experience: u64,
+    def: DefId<MonsterDefinition>,
 }
 
 pub struct MonsterPlugin;
